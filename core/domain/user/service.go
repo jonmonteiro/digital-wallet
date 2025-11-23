@@ -4,17 +4,19 @@ import (
 	"fmt"
 
 	"github.com/jmonteiro/picpay-like/core/config"
-	"github.com/jmonteiro/picpay-like/core/domain/auth"
+	middelware "github.com/jmonteiro/picpay-like/core/middleware/auth"
 	"github.com/jmonteiro/picpay-like/core/types"
 )
 
 type UserService struct {
-	store types.UserStore
+	store       types.UserStore
+	walletStore types.WalletStore
 }
 
-func NewUserService(store types.UserStore) *UserService {
+func NewUserService(store types.UserStore, walletStore types.WalletStore) *UserService {
 	return &UserService{
-		store: store,
+		store:       store,
+		walletStore: walletStore,
 	}
 }
 
@@ -24,7 +26,7 @@ func (s *UserService) RegisterUser(payload types.RegisterUserPayload) error {
 		return fmt.Errorf("user with email %s already exists", payload.Email)
 	}
 
-	hashedPassword, err := auth.HashPassword(payload.Password)
+	hashedPassword, err := middelware.HashPassword(payload.Password)
 	if err != nil {
 		return fmt.Errorf("failed to hash password: %w", err)
 	}
@@ -39,6 +41,25 @@ func (s *UserService) RegisterUser(payload types.RegisterUserPayload) error {
 		return fmt.Errorf("failed to create user: %w", err)
 	}
 
+	// Buscar o usuário recém-criado para obter o ID
+	createdUser, err := s.store.GetUserByEmail(payload.Email)
+	if err != nil {
+		return fmt.Errorf("user created but failed to retrieve ID: %w", err)
+	}
+
+	// Criar wallet automaticamente com saldo inicial zero
+	wallet := types.Wallet{
+		UserID:  createdUser.ID,
+		Balance: 0.0,
+	}
+
+	err = s.walletStore.CreateWallet(wallet)
+	if err != nil {
+		// Mesmo se falhar a criação da wallet, o usuário foi criado
+		// Poderia fazer rollback aqui se necessário
+		return fmt.Errorf("user created but failed to create wallet: %w", err)
+	}
+
 	return nil
 }
 
@@ -48,12 +69,12 @@ func (s *UserService) LoginUser(payload types.LoginUserPayload) (string, error) 
 		return "", fmt.Errorf("invalid email or password")
 	}
 
-	if !auth.ComparePasswords(u.Password, []byte(payload.Password)) {
+	if !middelware.ComparePasswords(u.Password, []byte(payload.Password)) {
 		return "", fmt.Errorf("invalid email or password")
 	}
 
 	secret := []byte(config.Envs.JWTSecret)
-	token, err := auth.CreateJWT(secret, int(u.ID))
+	token, err := middelware.CreateJWT(secret, int(u.ID))
 	if err != nil {
 		return "", fmt.Errorf("failed to create token: %w", err)
 	}
@@ -85,13 +106,13 @@ func (s *UserService) DeleteUser(id int) error {
 	return nil
 }
 
-func (s *UserService) UpdateUser(id int, payload types.RegisterUserPayload) error {	
+func (s *UserService) UpdateUser(id int, payload types.RegisterUserPayload) error {
 	_, err := s.store.GetUserByID(id)
 	if err != nil {
 		return fmt.Errorf("user not found: %w", err)
 	}
 
-	hashedPassword, err := auth.HashPassword(payload.Password)
+	hashedPassword, err := middelware.HashPassword(payload.Password)
 	if err != nil {
 		return fmt.Errorf("failed to hash password: %w", err)
 	}
@@ -100,7 +121,7 @@ func (s *UserService) UpdateUser(id int, payload types.RegisterUserPayload) erro
 		Email:    payload.Email,
 		Password: hashedPassword,
 	}
-	
+
 	err = s.store.UpdateUser(payload, id)
 	if err != nil {
 		return fmt.Errorf("failed to update user: %w", err)

@@ -1,4 +1,4 @@
-package auth
+package middelware
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strconv"
 	"time"
-
 	"github.com/golang-jwt/jwt"
 	"github.com/jmonteiro/picpay-like/core/config"
 	"github.com/jmonteiro/picpay-like/core/types"
@@ -34,7 +33,7 @@ func CreateJWT(secret []byte, userID int) (string, error) {
 	return tokenString, err
 }
 
-func WithJWTAuth(handlerFunc http.HandlerFunc, store types.UserStore) http.HandlerFunc {
+func WithJWTAuth(handlerFunc http.HandlerFunc, service types.UserStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		tokenString := utils.GetTokenFromRequest(r)
 
@@ -61,7 +60,7 @@ func WithJWTAuth(handlerFunc http.HandlerFunc, store types.UserStore) http.Handl
 			return
 		}
 
-		u, err := store.GetUserByID(userID)
+		u, err := service.GetUserByID(userID)
 		if err != nil {
 			log.Printf("failed to get user by id: %v", err)
 			permissionDenied(w)
