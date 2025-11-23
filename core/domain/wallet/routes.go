@@ -27,9 +27,10 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Post("/create", middelware.WithJWTAuth(h.handleCreateWallet, h.userService))
 		r.Get("/user/{userID}", h.handleGetWalletsByUserID)
 		r.Get("/{id}", h.handleGetWalletByID)
+		r.Put("/{walletID}/update-card", middelware.WithJWTAuth(h.handleUpdateCardNumber, h.userService))
 	})
 }
-//TODO: ONLY CARD PAYLOAD AND REGISTER REQUIRE JUST THE CARD NUMBER, BALANCE DEFAULT 0 
+
 func (h *Handler) handleCreateWallet(w http.ResponseWriter, r *http.Request) {
 	userID := middelware.GetUserIDFromContext(r.Context())
 	if userID == -1 {
@@ -37,10 +38,7 @@ func (h *Handler) handleCreateWallet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var payload struct {
-		CardNumber string  `json:"card_number" validate:"required"`
-		Balance    float64 `json:"balance"`
-	}
+	var payload types.WalletPayload
 
 	if err := utils.ParseJSON(r, &payload); err != nil {
 		utils.WriteError(w, http.StatusBadRequest, err)
@@ -55,7 +53,6 @@ func (h *Handler) handleCreateWallet(w http.ResponseWriter, r *http.Request) {
 	wallet := types.Wallet{
 		UserID:     userID,
 		CardNumber: payload.CardNumber,
-		Balance:    payload.Balance,
 	}
 
 	err := h.walletService.CreateWallet(wallet)
@@ -101,4 +98,41 @@ func (h *Handler) handleGetWalletsByUserID(w http.ResponseWriter, r *http.Reques
 	}
 
 	utils.WriteJSON(w, http.StatusOK, wallets)
+}
+
+func (h *Handler) handleUpdateCardNumber(w http.ResponseWriter, r *http.Request) {	
+	userID := middelware.GetUserIDFromContext(r.Context())
+	if userID == -1 {
+		utils.WriteError(w, http.StatusUnauthorized, fmt.Errorf("user not authenticated"))
+		return
+	}
+
+	walletIDParam := chi.URLParam(r, "walletID")
+	walletID, err := strconv.Atoi(walletIDParam)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid wallet ID: %v", err))
+		return
+	}
+
+	var payload struct {
+		NewCardNumber string `json:"new_card_number" validate:"required,len=16,numeric"`
+	}
+
+	if err := utils.ParseJSON(r, &payload); err != nil {
+		utils.WriteError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	if err := utils.Validate.Struct(payload); err != nil {
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid payload: %v", err))
+		return
+	}
+
+	err = h.walletService.UpdateCardNumber(userID, walletID, payload.NewCardNumber)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, map[string]string{"message": "card number updated successfully"})
 }

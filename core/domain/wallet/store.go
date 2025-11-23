@@ -54,3 +54,20 @@ func (s *Store) GetWalletsByUserID(userID int) ([]*types.Wallet, error) {
 
 	return wallets, nil
 }
+
+func (s *Store) GetWalletBYCardNumber(cardNumber string) (*types.Wallet, error) {
+	row := s.db.QueryRow(`SELECT id, user_id, card_number, balance FROM wallets WHERE card_number=$1`, cardNumber)
+
+	var w types.Wallet
+	err := row.Scan(&w.ID, &w.UserID, &w.CardNumber, &w.Balance)
+	if err != nil {
+		return nil, err
+	}
+
+	return &w, nil
+}
+
+func (s *Store) UpdateCardNumber(userID int, walletID int, newCardNumber string) error {
+	_, err := s.db.Exec("UPDATE wallets SET card_number=$1 WHERE id=$2 AND user_id=$3", newCardNumber, walletID, userID)
+	return err
+}
