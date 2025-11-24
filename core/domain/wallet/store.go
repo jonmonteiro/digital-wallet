@@ -71,3 +71,8 @@ func (s *Store) UpdateCardNumber(userID int, walletID int, newCardNumber string)
 	_, err := s.db.Exec("UPDATE wallets SET card_number=$1 WHERE id=$2 AND user_id=$3", newCardNumber, walletID, userID)
 	return err
 }
+
+func (s *Store) AddBalanceWithBankSlip(walletID int, amount float64) error {
+	_, err := s.db.Exec("UPDATE wallets SET balance = balance + $1 WHERE id = $2", amount, walletID)
+	return err
+}

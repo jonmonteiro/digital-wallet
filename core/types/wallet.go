@@ -2,6 +2,7 @@ package types
 
 type WalletStore interface {
 	CreateWallet(wallet Wallet) error
+	AddBalanceWithBankSlip(walletID int, amount float64) error
 	GetWalletByID(id int) (*Wallet, error)
 	GetWalletsByUserID(userID int) ([]*Wallet, error)
 	GetWalletBYCardNumber(cardNumber string) (*Wallet, error)

@@ -34,3 +34,7 @@ func (s *WalletService) GetWalletsByUserID(userID int) ([]*types.Wallet, error) 
 func (s *WalletService) UpdateCardNumber(userID int, walletID int, newCardNumber string) error {
 	return s.store.UpdateCardNumber(userID, walletID, newCardNumber)
 }
+
+func (s *WalletService) AddBalanceWithBankSlip(walletID int, amount float64) error {
+	return s.store.AddBalanceWithBankSlip(walletID, amount)
+}

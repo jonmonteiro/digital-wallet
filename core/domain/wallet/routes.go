@@ -27,7 +27,8 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Post("/create", middelware.WithJWTAuth(h.handleCreateWallet, h.userService))
 		r.Get("/user/{userID}", h.handleGetWalletsByUserID)
 		r.Get("/{id}", h.handleGetWalletByID)
-		r.Put("/{walletID}/update-card", middelware.WithJWTAuth(h.handleUpdateCardNumber, h.userService))
+		r.Patch("/{walletID}/update-card", middelware.WithJWTAuth(h.handleUpdateCardNumber, h.userService))
+		r.Patch("/{walletID}/add-balance", middelware.WithJWTAuth(h.handleAddBalanceWithBankSlip, h.userService))
 	})
 }
 
@@ -135,4 +136,41 @@ func (h *Handler) handleUpdateCardNumber(w http.ResponseWriter, r *http.Request)
 	}
 
 	utils.WriteJSON(w, http.StatusOK, map[string]string{"message": "card number updated successfully"})
+}
+
+func (h *Handler) handleAddBalanceWithBankSlip(w http.ResponseWriter, r *http.Request) {	
+	userID := middelware.GetUserIDFromContext(r.Context())
+	if userID == -1 {
+		utils.WriteError(w, http.StatusUnauthorized, fmt.Errorf("user not authenticated"))
+		return
+	}
+
+	walletIDParam := chi.URLParam(r, "walletID")
+	walletID, err := strconv.Atoi(walletIDParam)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid wallet ID: %v", err))
+		return
+	}
+
+	var payload struct {
+		Amount float64 `json:"amount" validate:"required,gt=0"`
+	}
+
+	if err := utils.ParseJSON(r, &payload); err != nil {
+		utils.WriteError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	if err := utils.Validate.Struct(payload); err != nil {
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid payload: %v", err))
+		return
+	}
+
+	err = h.walletService.AddBalanceWithBankSlip(walletID, payload.Amount)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, map[string]string{"message": "balance added successfully"})
 }
