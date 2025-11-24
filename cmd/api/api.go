@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/jmonteiro/picpay-like/core/domain/transaction"
 	"github.com/jmonteiro/picpay-like/core/domain/user"
 	"github.com/jmonteiro/picpay-like/core/domain/wallet"
 )
@@ -48,10 +49,12 @@ func (s *APIServer) Run() error {
 		walletHdlr.RegisterRoutes(api)
 
 		// ===== TRANSACTION =====
-		// TODO: Implementar transaction handler
+		transactionStore := transaction.NewStore(s.db)
+		transactionService := transaction.NewTransactionService(transactionStore, walletStore)
+		transactionHdlr := transaction.NewHandler(transactionService, userStore)
+		transactionHdlr.RegisterRoutes(api)
 	})
 
-	// Servir arquivos estáticos (opcional)
 	r.Handle("/*", http.FileServer(http.Dir("static")))
 
 	log.Println("Listening on", s.addr)

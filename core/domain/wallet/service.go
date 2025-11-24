@@ -2,6 +2,7 @@ package wallet
 
 import (
 	"fmt"
+
 	"github.com/jmonteiro/picpay-like/core/types"
 )
 
@@ -16,9 +17,9 @@ func NewWalletService(store types.WalletStore) *WalletService {
 }
 
 func (s *WalletService) CreateWallet(wallet types.Wallet) error {
-	_, err := s.store.GetWalletBYCardNumber(wallet.CardNumber)
+	_, err := s.store.GetWalletByCardNumber(wallet.CardNumber)
 	if err == nil {
-		return  fmt.Errorf("wallet with card number %s already exists", wallet.CardNumber)
+		return fmt.Errorf("wallet with card number %s already exists", wallet.CardNumber)
 	}
 	return s.store.CreateWallet(wallet)
 }

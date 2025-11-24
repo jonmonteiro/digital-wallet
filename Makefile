@@ -1,8 +1,3 @@
-.PHONY: build run dev migration migrate-up migrate-down docker-up docker-down clean help
-
-help: ## Mostra todos os comandos disponíveis
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
-
 build: ## Compila a aplicação
 	@go build -o bin/app cmd/main.go
 
